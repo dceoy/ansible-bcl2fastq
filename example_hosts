@@ -1,0 +1,10 @@
+[nextseq]
+localhost   ansible_connection=local
+
+[all:vars]
+slack_channel = ansible
+slack_icon_url = https://pbs.twimg.com/profile_images/428287509047435264/ElOjna20.png
+slack_token = XXXXXXXXX/YYYYYYYYY/ZZZZZZZZZZZZZZZZZZZZZZZZZZ
+http_proxy = https://example.proxy.com:8080/
+bcl2fastq = /usr/local/bin/bcl2fastq
+seq_output_dir = /path/seq/data

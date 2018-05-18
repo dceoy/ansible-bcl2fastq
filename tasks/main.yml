@@ -1,0 +1,61 @@
+---
+- name: Set a log file name
+  set_fact:
+    bcl2fastq_log_txt: bcl2fastq_log.txt
+
+- name: Find run directories
+  find:
+    path: "{{ seq_output_dir }}"
+    pattern: '[0-9]*_[^_]*_[0-9]*_*'
+    file_type: directory
+    use_regex: true
+    recurse: no
+  register: run_dirs
+
+- name: Find target directories
+  shell: |
+    [[ -f "{{ item.path }}/SampleSheet.csv" ]] \
+      && [[ -f "{{ item.path }}/RTAComplete.txt" ]] \
+      && [[ ! -f "{{ item.path }}/{{ bcl2fastq_log_txt }}" ]]  \
+      && [[ ! $(find "{{ item.path }}/Data/Intensities/BaseCalls/" -name "*.fastq.gz") ]] \
+      && echo "{{ item.path }}" \
+      || :
+  with_items: "{{ run_dirs.files }}"
+  register: target_dirs
+  changed_when: false
+
+- name: Set a list of targets
+  set_fact:
+    target_list: |
+      {% set o = [] %}
+      {% for r in target_dirs.results if r.stdout %}
+      {%   set _ = o.append(r.stdout) %}
+      {% endfor %}
+      {{ o }}
+
+- name: Execute bcl2fastq
+  become: true
+  become_user: nobody
+  when: target_list|length > 0
+  shell: |
+    {{ bcl2fastq }} --runfolder {{ item }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
+  with_items: "{{ target_list }}"
+  register: exec_bcl2fastq
+  ignore_errors: true
+
+- name: Send a message via Slack
+  when:
+    - target_list|length > 0
+    - slack_color is defined
+    - slack_msg is defined
+  environment:
+    https_proxy: "{{ http_proxy }}"
+  local_action:
+    module: slack
+    token: "{{ slack_token }}"
+    msg: |
+      [ bcl2fastq {{ 'completed' if exec_bcl2fastq is succeeded else 'failed' }} on {{ inventory_hostname }} ]\n  {{ target_list|join('\n  - ') }}
+    color: "{{ 'good' if exec_bcl2fastq is succeeded else 'danger' }}"
+    channel: "#{{ slack_channel }}"
+    username: "{{ ansible_user }}@{{ inventory_hostname }}"
+    icon_url: "{{ slack_icon_url }}"

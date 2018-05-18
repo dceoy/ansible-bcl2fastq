@@ -1,0 +1,8 @@
+---
+- name: Run bcl2fastq in NextSeq run directories
+  hosts:
+    - nextseq
+  environment:
+    https_proxy: "{{ http_proxy }}"
+  tasks:
+    - import_tasks: tasks/main.yml
