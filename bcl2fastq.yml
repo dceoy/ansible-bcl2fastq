@@ -2,7 +2,9 @@
 - name: Run bcl2fastq in NextSeq run directories
   hosts:
     - nextseq
+  vars:
+    use_docker: true
   environment:
     https_proxy: "{{ http_proxy }}"
-  tasks:
-    - import_tasks: tasks/main.yml
+  roles:
+    - bcl2fastq

@@ -2,10 +2,11 @@
 - name: Set a log file name
   set_fact:
     bcl2fastq_log_txt: bcl2fastq_log.txt
+    bcl2fastq_path: "{{ 'docker-compose run --rm bcl2fastq' if use_docker is defined and use_docker else 'bcl2fastq' }}"
 
 - name: Find run directories
   find:
-    path: "{{ seq_output_dir }}"
+    path: "{{ seq_dir_path }}"
     pattern: '[0-9]*_[^_]*_[0-9]*_*'
     file_type: directory
     use_regex: true
@@ -33,12 +34,25 @@
       {% endfor %}
       {{ o }}
 
-- name: Execute bcl2fastq
+- name: Put docker-compose.yml
+  when:
+    - use_docker is defined
+    - use_docker
   become: true
   become_user: nobody
+  copy:
+    src: docker-compose.yml
+    dest: "{{ seq_dir_path }}/docker-compose.yml"
+
+- name: Execute bcl2fastq
   when: target_list|length > 0
+  become: true
+  become_user: nobody
   shell: |
-    {{ bcl2fastq }} --runfolder {{ item }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
+    export UID=$(id -u) GID=$(id -u)
+    {{ bcl2fastq_path }} --runfolder-dir {{ item|basename }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
+  args:
+    chdir: "{{ seq_dir_path }}"
   with_items: "{{ target_list }}"
   register: exec_bcl2fastq
   ignore_errors: true
@@ -54,8 +68,9 @@
     module: slack
     token: "{{ slack_token }}"
     msg: |
-      [ bcl2fastq {{ 'completed' if exec_bcl2fastq is succeeded else 'failed' }} on {{ inventory_hostname }} ]\n  {{ target_list|join('\n  - ') }}
-    color: "{{ 'good' if exec_bcl2fastq is succeeded else 'danger' }}"
+      [ bcl2fastq {{ 'completed' if item is succeeded else 'failed' }} ]    {{ item.item.path }}
+    color: "{{ 'good' if item is succeeded else 'danger' }}"
     channel: "#{{ slack_channel }}"
     username: "{{ ansible_user }}@{{ inventory_hostname }}"
     icon_url: "{{ slack_icon_url }}"
+  with_items: "{{ exec_bcl2fastq.results }}"

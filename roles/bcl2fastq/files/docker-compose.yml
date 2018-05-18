@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  bcl2fastq:
+    container_name: bcl2fastq
+    image: dceoy/bcl2fastq:latest
+    user: ${UID}:${GID}
+    volumes:
+      - .:/data
+    working_dir: /data
+    entrypoint:
+      - /usr/local/bin/bcl2fastq
