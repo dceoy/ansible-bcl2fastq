@@ -32,3 +32,5 @@ Convert bcl files into fastq files in the run directories where `SampleSheet.csv
 ```sh
 $ ansible-playbook -i hosts bcl2fastq.yml
 ```
+
+Docker mode pulls [dceoy/bcl2fastq](https://hub.docker.com/r/dceoy/bcl2fastq/) image in a run if it does not exist.
