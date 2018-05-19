@@ -30,5 +30,5 @@ Usage
 Convert bcl files into fastq files in the run directories where `SampleSheet.csv` is put.
 
 ```sh
-$ ansible-playbook -i hosts bcl2fast.yml
+$ ansible-playbook -i hosts bcl2fastq.yml
 ```
