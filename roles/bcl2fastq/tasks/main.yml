@@ -2,7 +2,7 @@
 - name: Set a log file name
   set_fact:
     bcl2fastq_log_txt: bcl2fastq_log.txt
-    bcl2fastq_path: "{{ 'docker-compose run --rm bcl2fastq' if use_docker is defined and use_docker else 'bcl2fastq' }}"
+    bcl2fastq_cmd: "{{ 'docker-compose run -u nobody --rm bcl2fastq' if use_docker is defined and use_docker else 'bcl2fastq' }}"
 
 - name: Find run directories
   find:
@@ -47,10 +47,10 @@
 - name: Execute bcl2fastq
   when: target_list|length > 0
   become: true
-  become_user: nobody
+  become_user: "{{ 'root' if use_docker else 'nobody' }}"
   shell: |
-    export UID=$(id -u) GID=$(id -u)
-    {{ bcl2fastq_path }} --runfolder-dir {{ item|basename }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
+    {{ bcl2fastq_cmd }} --runfolder-dir {{ item|basename }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
+    {{ 'chown nobody:nobody ' + item + '/' + bcl2fastq_log_txt if use_docker else ':' }}
   args:
     chdir: "{{ seq_dir_path }}"
   with_items: "{{ target_list }}"
