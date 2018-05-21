@@ -1,7 +1,7 @@
 ansible-bcl2fastq
 =================
 
-Ansible playbook to convert bcl into fastq for Illumina NextSeq
+Ansible playbook to convert bcl into fastq in run directories from Illumina NextSeq
 
 Requirements of remote servers
 ------------------------------
@@ -13,6 +13,16 @@ There are two alternative modes (Docker-based or command-based) for execution, a
   - Docker Compose
 - Command-based mode (`use_docker: false`)
   - bcl2fastq
+
+Trigger conditions to execute bcl2fastq
+---------------------------------------
+
+- `RTAComplete.txt` exists
+- `SampleSheet.csv` exists
+- `*.fastq.gz` files does not exist under `Data/Intensities/BaseCalls`
+- `bcl2fastq_log.txt` does not exist
+
+If all of the above are satisfied in a run directory, bcl2fastq can be executable there.
 
 Setup
 -----
