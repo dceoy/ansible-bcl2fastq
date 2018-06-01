@@ -50,18 +50,27 @@
   become_user: "{{ 'root' if use_docker else 'nobody' }}"
   shell: |
     {{ bcl2fastq_cmd }} --runfolder-dir {{ item|basename }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
-    {{ 'chown nobody:nobody ' + item + '/' + bcl2fastq_log_txt if use_docker else ':' }}
   args:
     chdir: "{{ seq_dir_path }}"
   with_items: "{{ target_list }}"
   register: exec_bcl2fastq
   ignore_errors: true
 
-- name: Send a message via Slack
+- name: Change ownerships of log files
   when:
+    - use_docker
     - target_list|length > 0
-    - slack_color is defined
-    - slack_msg is defined
+  become: true
+  shell: |
+    [[ -f {{ item }}/{{ bcl2fastq_log_txt }} ]] && \
+      chown nobody:nobody {{ item }}/{{ bcl2fastq_log_txt }}
+  args:
+    chdir: "{{ seq_dir_path }}"
+  with_items: "{{ target_list }}"
+  ignore_errors: true
+
+- name: Send a message via Slack
+  when: target_list|length > 0
   environment:
     https_proxy: "{{ http_proxy }}"
   local_action:

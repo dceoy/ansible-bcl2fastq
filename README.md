@@ -3,6 +3,8 @@ ansible-bcl2fastq
 
 Ansible playbook to convert bcl into fastq in run directories from Illumina NextSeq
 
+Recommended OS: CentOS7
+
 Requirements of remote servers
 ------------------------------
 
@@ -19,7 +21,7 @@ Trigger conditions to execute bcl2fastq
 
 - `RTAComplete.txt` exists
 - `SampleSheet.csv` exists
-- `*.fastq.gz` files does not exist under `Data/Intensities/BaseCalls`
+- `*.fastq.gz` files does not exist under `./Data/Intensities/BaseCalls`
 - `bcl2fastq_log.txt` does not exist
 
 If all of the above are satisfied in a run directory, bcl2fastq can be executable there.
@@ -43,4 +45,4 @@ Convert bcl files into fastq files in the run directories where `SampleSheet.csv
 $ ansible-playbook -i hosts bcl2fastq.yml
 ```
 
-Docker mode pulls [dceoy/bcl2fastq](https://hub.docker.com/r/dceoy/bcl2fastq/) image in a run if it does not exist.
+Docker-based mode pulls [dceoy/bcl2fastq](https://hub.docker.com/r/dceoy/bcl2fastq/) image in a run if it does not exist.
