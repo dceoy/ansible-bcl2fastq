@@ -2,7 +2,8 @@
 - name: Set a log file name
   set_fact:
     bcl2fastq_log_txt: bcl2fastq_log.txt
-    bcl2fastq_cmd: "{{ 'docker-compose run -u nobody --rm bcl2fastq' if use_docker is defined and use_docker else 'bcl2fastq' }}"
+    use_docker: "{{ use_docker is defined and use_docker }}"
+    run_user: "{{ run_user if run_user is defined else 'nobody' }}"
 
 - name: Find run directories
   find:
@@ -35,21 +36,20 @@
       {{ o }}
 
 - name: Put docker-compose.yml
-  when:
-    - use_docker is defined
-    - use_docker
+  when: use_docker
   become: true
   become_user: nobody
   copy:
     src: docker-compose.yml
     dest: "{{ seq_dir_path }}/docker-compose.yml"
 
-- name: Execute bcl2fastq
+- name: Execute bcl2fastq using Docker
   when: target_list|length > 0
   become: true
-  become_user: "{{ 'root' if use_docker else 'nobody' }}"
+  become_user: "{{ 'root' if use_docker else run_user }}"
   shell: |
-    {{ bcl2fastq_cmd }} --runfolder-dir {{ item|basename }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
+    {{ 'docker-compose run --rm -u ' + run_user + ' bcl2fastq' if use_docker else 'bcl2fastq' }} \
+      --runfolder-dir {{ item|basename }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
   args:
     chdir: "{{ seq_dir_path }}"
   with_items: "{{ target_list }}"
@@ -62,8 +62,8 @@
     - target_list|length > 0
   become: true
   shell: |
-    [[ -f {{ item }}/{{ bcl2fastq_log_txt }} ]] && \
-      chown nobody:nobody {{ item }}/{{ bcl2fastq_log_txt }}
+    [[ -f {{ item }}/{{ bcl2fastq_log_txt }} ]] \
+      && chown {{ run_user }}:{{ run_user }} {{ item }}/{{ bcl2fastq_log_txt }}
   args:
     chdir: "{{ seq_dir_path }}"
   with_items: "{{ target_list }}"
