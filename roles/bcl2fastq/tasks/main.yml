@@ -16,9 +16,9 @@
 
 - name: Find target directories
   shell: |
-    [[ -f "{{ item.path }}/SampleSheet.csv" ]] \
+    [[ ! -f "{{ item.path }}/{{ bcl2fastq_log_txt }}" ]] \
+      && [[ -f "{{ item.path }}/SampleSheet.csv" ]] \
       && [[ -f "{{ item.path }}/RTAComplete.txt" ]] \
-      && [[ ! -f "{{ item.path }}/{{ bcl2fastq_log_txt }}" ]]  \
       && [[ ! $(find "{{ item.path }}/Data/Intensities/BaseCalls/" -name "*.fastq.gz") ]] \
       && echo "{{ item.path }}" \
       || :
