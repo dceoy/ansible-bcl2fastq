@@ -48,8 +48,8 @@
   become: true
   become_user: "{{ 'root' if use_docker else run_user }}"
   shell: |
-    {{ 'docker-compose run --rm -u ' + run_user + ' bcl2fastq' if use_docker else 'bcl2fastq' }} \
-      --runfolder-dir {{ item|basename }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
+    {{ 'docker-compose run --rm -u $(id -u ' + run_user + '):$(id -g ' + run_user + ')'  if use_docker else '' }} \
+      bcl2fastq --runfolder-dir {{ item|basename }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
   args:
     chdir: "{{ seq_dir_path }}"
   with_items: "{{ target_list }}"
@@ -79,7 +79,7 @@
     module: slack
     token: "{{ slack_token }}"
     msg: |
-      [ bcl2fastq {{ 'completed' if item is succeeded else 'failed' }} ]    {{ item.item.path }}
+      [ bcl2fastq {{ 'completed' if item is succeeded else 'failed' }} ]    {{ item.item }}
     color: "{{ 'good' if item is succeeded else 'danger' }}"
     channel: "#{{ slack_channel }}"
     username: "{{ ansible_user }}@{{ inventory_hostname }}"
