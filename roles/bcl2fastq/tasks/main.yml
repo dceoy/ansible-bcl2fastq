@@ -61,11 +61,11 @@
     - use_docker
     - target_list|length > 0
   become: true
-  shell: |
-    [[ -f {{ item }}/{{ bcl2fastq_log_txt }} ]] \
-      && chown {{ run_user }}:{{ run_user }} {{ item }}/{{ bcl2fastq_log_txt }}
-  args:
-    chdir: "{{ seq_dir_path }}"
+  file:
+    path: "{{ seq_dir_path }}/{{ item }}/{{ bcl2fastq_log_txt }}"
+    state: file
+    owner: "{{ run_user }}"
+    group: "{{ run_user }}"
   with_items: "{{ target_list }}"
   ignore_errors: true
 
