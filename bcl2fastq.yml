@@ -5,7 +5,5 @@
   vars:
     use_docker: true
     run_user: nobody
-  environment:
-    https_proxy: "{{ http_proxy }}"
   roles:
     - bcl2fastq
