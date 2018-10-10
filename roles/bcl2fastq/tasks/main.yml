@@ -38,10 +38,11 @@
 - name: Put docker-compose.yml
   when: use_docker
   become: true
-  become_user: nobody
   copy:
     src: docker-compose.yml
     dest: "{{ seq_dir_path }}/docker-compose.yml"
+    owner: "{{ run_user }}"
+    group: "{{ run_group if run_group is defined else run_user }}"
 
 - name: Execute bcl2fastq
   when: target_list|length > 0

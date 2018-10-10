@@ -5,5 +5,6 @@
   vars:
     use_docker: true
     run_user: nobody
+    run_group: nobody
   roles:
     - bcl2fastq
