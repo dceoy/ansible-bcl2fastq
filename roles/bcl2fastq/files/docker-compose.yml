@@ -5,6 +5,8 @@ services:
   bcl2fastq:
     container_name: bcl2fastq
     image: dceoy/bcl2fastq:latest
+    user: ${UID}:${GID}
+    userns_mode: host
     volumes:
       - .:/data
     working_dir: /data
