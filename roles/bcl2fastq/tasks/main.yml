@@ -63,10 +63,10 @@
     - target_list|length > 0
   become: true
   file:
-    path: "{{ seq_dir_path }}/{{ item }}/{{ bcl2fastq_log_txt }}"
+    path: "{{ seq_dir_path }}/{{ item|basename }}/{{ bcl2fastq_log_txt }}"
     state: file
     owner: "{{ run_user }}"
-    group: "{{ run_user }}"
+    group: "{{ run_group if run_group is defined else run_user }}"
   with_items: "{{ target_list }}"
   ignore_errors: true
 
