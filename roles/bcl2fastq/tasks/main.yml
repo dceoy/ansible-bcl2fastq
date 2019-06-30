@@ -36,7 +36,7 @@
       {{ o }}
 
 - name: Put docker-compose.yml
-  when: use_docker
+  when: use_docker|bool
   become: true
   copy:
     src: docker-compose.yml
@@ -59,7 +59,7 @@
 
 - name: Change ownerships of log files
   when:
-    - use_docker
+    - use_docker|bool
     - target_list|length > 0
   become: true
   file:
@@ -78,8 +78,7 @@
     - target_list|length > 0
   environment:
     https_proxy: "{{ http_proxy if http_proxy is defined else '' }}"
-  local_action:
-    module: slack
+  slack:
     token: "{{ slack_token }}"
     msg: |
       [ bcl2fastq {{ 'completed' if item is succeeded else 'failed' }} ]    {{ item.item }}
@@ -88,3 +87,4 @@
     username: "{{ ansible_user }}@{{ inventory_hostname }}"
     icon_url: "{{ slack_icon_url }}"
   with_items: "{{ exec_bcl2fastq.results }}"
+  delegate_to: localhost
