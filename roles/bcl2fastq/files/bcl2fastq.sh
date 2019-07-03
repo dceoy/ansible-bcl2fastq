@@ -80,7 +80,7 @@ while [[ ${#} -ge 1 ]]; do
       ;;
   esac
 done
-[[ ${#MAIN_ARGS[@]} -gt 0 ]] || abort 'missing path arguments'
+[[ ${#MAIN_ARGS[@]} -eq 0 ]] && abort 'missing path arguments'
 
 for p in "${MAIN_ARGS[@]}"; do
   [[ -d "${p}" ]] || abort "invalid directory path: ${p}"
@@ -93,15 +93,18 @@ for p in "${MAIN_ARGS[@]}"; do
 done
 
 if [[ ${ONLY_PRINT} -eq 0 ]] && [[ ${#SEARCH_PATHS[@]} -gt 0 ]]; then
+  FAILED_PATHS=()
   bcl2fastq --version
   for p in "${SEARCH_PATHS[@]}"; do
     printf ">>> Sequencing run directories:\t%s\n" "${p}"
     if [[ ${DRY_RUN} -eq 0 ]]; then
       bcl2fastq --runfolder-dir "${p}" 2>&1 | tee "${p}/${LOG_FILE}"
+      [[ ${PIPESTATUS[0]} -ne 0 ]] && FAILED_PATHS+=("${p}")
     else
       echo "bcl2fastq --runfolder-dir ${p} 2>&1 | tee ${p}/${LOG_FILE}"
     fi
   done
+  [[ ${#FAILED_PATHS[@]} -gt 0 ]] && abort "bcl2fastq failed: ${#FAILED_PATHS[*]}"
 else
   :
 fi

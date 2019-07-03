@@ -3,6 +3,7 @@
   hosts:
     - nextseq
   vars:
+    dry_run: false
     use_docker: true
     run_user: nobody
     run_group: nobody
