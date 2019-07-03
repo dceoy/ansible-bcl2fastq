@@ -1,5 +1,5 @@
 ---
-- name: Set a log file name
+- name: Set configs
   set_fact:
     dry_run: "{{ dry_run is defined and dry_run }}"
     use_docker: "{{ use_docker is defined and use_docker }}"
@@ -10,6 +10,7 @@
   copy:
     src: bcl2fastq.sh
     dest: "{{ seq_dir_path }}/bcl2fastq.sh"
+    mode: 0755
     owner: "{{ run_user }}"
     group: "{{ run_group if run_group is defined else run_user }}"
 
@@ -22,46 +23,36 @@
     owner: "{{ run_user }}"
     group: "{{ run_group if run_group is defined else run_user }}"
 
-- name: Find run directories
-  find:
-    path: "{{ seq_dir_path }}"
-    pattern: '[0-9]*_[^_]*_[0-9]*_*'
-    file_type: directory
-    use_regex: true
-    recurse: no
-  register: run_dirs
-
-- name: Find target directories
-  shell: |
-    ./bcl2fastq.sh --only-print {{ run_dirs.files|join(' ') }}
-  register: target_dirs
-  changed_when: false
-
-- name: Set a list of targets
+- name: Set bcl2fastq_sh
   set_fact:
-    target_list: |
-      {% set o = [] %}
-      {% for p in target_dirs.stdout.split() if p %}
-      {%   set _ = o.append(p) %}
-      {% endfor %}
-      {{ o }}
-    bcl2fatsq_sh: |
+    bcl2fastq_sh: |
       {% if use_docker %}
       {%   set u = '$(id -u ' + run_user + '):$(id -g ' + run_user + ')' %}
       {%   set c = 'docker-compose run --rm -u ' + u + ' bcl2fastq' %}
       {% else %}
-      {%   set c = './bcl2fastq.sh' %}
+      {%   set c = seq_dir_path + '/bcl2fastq.sh' %}
+      {% endif %}
       {{ c }}
 
+- name: Find target directories
+  shell: |
+    {{ bcl2fastq_sh|trim }} --only-print \
+      $(find . -maxdepth 1 -mindepth 1 -type d -name '[0-9]*_[^_]*_[0-9]*_*' | paste -sd ' ') \
+      | xargs realpath
+  args:
+    chdir: "{{ seq_dir_path }}"
+  register: target_dirs
+  changed_when: false
+
 - name: Execute bcl2fastq
-  when: target_list|length > 0
+  when: target_dirs.stdout_lines|length > 0
   become: true
   become_user: "{{ 'root' if use_docker else run_user }}"
   shell: |
-    {{ bcl2fastq_sh }} {{ '--dry-run' if dry_run else '' }} {{ item|basename }}
+    {{ bcl2fastq_sh|trim }} {{ '--dry-run' if dry_run else '' }} {{ item|basename }}
   args:
     chdir: "{{ seq_dir_path }}"
-  with_items: "{{ target_list }}"
+  with_items: "{{ target_dirs.stdout_lines }}"
   register: exec_bcl2fastq
   ignore_errors: true
 
@@ -69,14 +60,14 @@
   when:
     - not dry_run|bool
     - use_docker|bool
-    - target_list|length > 0
+    - target_dirs.stdout_lines|length > 0
   become: true
   file:
     path: "{{ seq_dir_path }}/{{ item|basename }}/bcl2fastq_log.txt"
     state: file
     owner: "{{ run_user }}"
     group: "{{ run_group if run_group is defined else run_user }}"
-  with_items: "{{ target_list }}"
+  with_items: "{{ target_dirs.stdout_lines }}"
   ignore_errors: true
 
 - name: Send a message via Slack
@@ -84,7 +75,7 @@
     - slack_token is defined
     - slack_channel is defined
     - slack_icon_url is defined
-    - target_list|length > 0
+    - target_dirs.stdout_lines|length > 0
   delegate_to: localhost
   environment:
     https_proxy: "{{ http_proxy if http_proxy is defined else '' }}"

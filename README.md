@@ -1,7 +1,7 @@
 ansible-bcl2fastq
 =================
 
-Ansible playbook to convert bcl into fastq in run directories from Illumina NextSeq
+Ansible playbook to convert bcl into fastq in run directories from Illumina DNA sequencer
 
 Recommended OS: CentOS7
 

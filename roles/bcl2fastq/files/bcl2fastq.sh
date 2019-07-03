@@ -80,31 +80,33 @@ while [[ ${#} -ge 1 ]]; do
       ;;
   esac
 done
-[[ ${#MAIN_ARGS[@]} -eq 0 ]] && abort 'missing path arguments'
+[[ ${#MAIN_ARGS[@]} -gt 0 ]] || abort 'missing path arguments'
 
 for p in "${MAIN_ARGS[@]}"; do
   [[ -d "${p}" ]] || abort "invalid directory path: ${p}"
-  [[ ! -f "${p}/${LOG_FILE}" ]] \
+  if [[ ! -f "${p}/${LOG_FILE}" ]] \
     && [[ -f "${p}/SampleSheet.csv" ]] \
     && [[ -f "${p}/RTAComplete.txt" ]] \
-    && [[ ! $(find "${p}/Data/Intensities/BaseCalls" -type f -name '*.fastq.gz') ]] \
-    && SEARCH_PATHS+=("${p}")
-  [[ ${ONLY_PRINT} -eq 1 ]] && echo "${p}"
+    && [[ ! $(find "${p}/Data/Intensities/BaseCalls" -type f -name '*.fastq.gz') ]]; then
+      SEARCH_PATHS+=("${p}")
+      [[ ${ONLY_PRINT} -eq 0 ]] || echo "${p}"
+  fi
 done
 
 if [[ ${ONLY_PRINT} -eq 0 ]] && [[ ${#SEARCH_PATHS[@]} -gt 0 ]]; then
-  FAILED_PATHS=()
+  echo '>>> Check bcl2fastq command'
   bcl2fastq --version
+  FAILED_PATHS=()
   for p in "${SEARCH_PATHS[@]}"; do
-    printf ">>> Sequencing run directories:\t%s\n" "${p}"
+    echo ">>> Sequencing run directories: ${p}"
     if [[ ${DRY_RUN} -eq 0 ]]; then
       bcl2fastq --runfolder-dir "${p}" 2>&1 | tee "${p}/${LOG_FILE}"
-      [[ ${PIPESTATUS[0]} -ne 0 ]] && FAILED_PATHS+=("${p}")
+      [[ ${PIPESTATUS[0]} -eq 0 ]] || FAILED_PATHS+=("${p}")
     else
       echo "bcl2fastq --runfolder-dir ${p} 2>&1 | tee ${p}/${LOG_FILE}"
     fi
   done
-  [[ ${#FAILED_PATHS[@]} -gt 0 ]] && abort "bcl2fastq failed: ${#FAILED_PATHS[*]}"
+  [[ ${#FAILED_PATHS[@]} -eq 0 ]] || abort "bcl2fastq failed: ${#FAILED_PATHS[*]}"
 else
   :
 fi
