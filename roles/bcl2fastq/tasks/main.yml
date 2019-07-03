@@ -5,6 +5,23 @@
     use_docker: "{{ use_docker is defined and use_docker }}"
     run_user: "{{ run_user if run_user is defined else 'nobody' }}"
 
+- name: Put bcl2fastq.sh
+  become: true
+  copy:
+    src: bcl2fastq.sh
+    dest: "{{ seq_dir_path }}/bcl2fastq.sh"
+    owner: "{{ run_user }}"
+    group: "{{ run_group if run_group is defined else run_user }}"
+
+- name: Put docker-compose.yml
+  when: use_docker|bool
+  become: true
+  copy:
+    src: docker-compose.yml
+    dest: "{{ seq_dir_path }}/docker-compose.yml"
+    owner: "{{ run_user }}"
+    group: "{{ run_group if run_group is defined else run_user }}"
+
 - name: Find run directories
   find:
     path: "{{ seq_dir_path }}"
@@ -16,13 +33,7 @@
 
 - name: Find target directories
   shell: |
-    [[ ! -f "{{ item.path }}/{{ bcl2fastq_log_txt }}" ]] \
-      && [[ -f "{{ item.path }}/SampleSheet.csv" ]] \
-      && [[ -f "{{ item.path }}/RTAComplete.txt" ]] \
-      && [[ ! $(find "{{ item.path }}/Data/Intensities/BaseCalls/" -name "*.fastq.gz") ]] \
-      && echo "{{ item.path }}" \
-      || :
-  with_items: "{{ run_dirs.files }}"
+    ./bcl2fastq.sh --only-print {{ run_dirs.files|join(' ') }}
   register: target_dirs
   changed_when: false
 
@@ -30,27 +41,24 @@
   set_fact:
     target_list: |
       {% set o = [] %}
-      {% for r in target_dirs.results if r.stdout %}
-      {%   set _ = o.append(r.stdout) %}
+      {% for p in target_dirs.stdout.split() if p %}
+      {%   set _ = o.append(p) %}
       {% endfor %}
       {{ o }}
-
-- name: Put docker-compose.yml
-  when: use_docker|bool
-  become: true
-  copy:
-    src: docker-compose.yml
-    dest: "{{ seq_dir_path }}/docker-compose.yml"
-    owner: "{{ run_user }}"
-    group: "{{ run_group if run_group is defined else run_user }}"
+    bcl2fatsq_sh: |
+      {% if use_docker %}
+      {%   set u = '$(id -u ' + run_user + '):$(id -g ' + run_user + ')' %}
+      {%   set c = 'docker-compose run --rm -u ' + u + ' bcl2fastq' %}
+      {% else %}
+      {%   set c = './bcl2fastq.sh' %}
+      {{ c }}
 
 - name: Execute bcl2fastq
   when: target_list|length > 0
   become: true
   become_user: "{{ 'root' if use_docker else run_user }}"
   shell: |
-    {{ 'docker-compose run --rm -u $(id -u ' + run_user + '):$(id -g ' + run_user + ')'  if use_docker else '' }} \
-      bcl2fastq --runfolder-dir {{ item|basename }} > {{ item }}/{{ bcl2fastq_log_txt }} 2>&1
+    {{ bcl2fastq_sh }} {{ item|basename }}
   args:
     chdir: "{{ seq_dir_path }}"
   with_items: "{{ target_list }}"
@@ -76,6 +84,7 @@
     - slack_channel is defined
     - slack_icon_url is defined
     - target_list|length > 0
+  delegate_to: localhost
   environment:
     https_proxy: "{{ http_proxy if http_proxy is defined else '' }}"
   slack:
@@ -87,4 +96,3 @@
     username: "{{ ansible_user }}@{{ inventory_hostname }}"
     icon_url: "{{ slack_icon_url }}"
   with_items: "{{ exec_bcl2fastq.results }}"
-  delegate_to: localhost

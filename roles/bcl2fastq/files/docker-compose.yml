@@ -8,7 +8,9 @@ services:
     user: ${UID}:${GID}
     userns_mode: host
     volumes:
-      - .:/data
-    working_dir: /data
+      - .:/wd
+    working_dir: /wd
     entrypoint:
-      - /usr/local/bin/bcl2fastq
+      - /wd/bcl2fastq.sh
+    command:
+      - --version
