@@ -34,18 +34,30 @@
       {% endif %}
       {{ c }}
 
+- name: Find run directories
+  find:
+    paths: "{{ seq_dir_path }}"
+    depth: 1
+    recurse: no
+    file_type: directory
+    patterns: '[0-9]+_[^_]+_[0-9]+_[^_]+'
+    use_regex: yes
+  register: run_dirs
+
 - name: Find target directories
+  when: run_dirs.files|length > 0
   shell: |
     {{ bcl2fastq_sh|trim }} --only-print \
-      $(find . -maxdepth 1 -mindepth 1 -type d -name '[0-9]*_[^_]*_[0-9]*_*' | paste -sd ' ') \
-      | xargs realpath
+      {{ run_dirs.files|map(attribute='path')|map('basename')|join(' ') }}
   args:
     chdir: "{{ seq_dir_path }}"
   register: target_dirs
   changed_when: false
 
 - name: Execute bcl2fastq
-  when: target_dirs.stdout_lines|length > 0
+  when:
+    - run_dirs.files|length > 0
+    - target_dirs.stdout_lines|length > 0
   become: true
   become_user: "{{ 'root' if use_docker else run_user }}"
   shell: |
@@ -60,6 +72,7 @@
   when:
     - not dry_run|bool
     - use_docker|bool
+    - run_dirs.files|length > 0
     - target_dirs.stdout_lines|length > 0
   become: true
   file:
@@ -75,6 +88,7 @@
     - slack_token is defined
     - slack_channel is defined
     - slack_icon_url is defined
+    - run_dirs.files|length > 0
     - target_dirs.stdout_lines|length > 0
   delegate_to: localhost
   environment:
