@@ -4,7 +4,7 @@
     - nextseq
   vars:
     dry_run: false
-    use_docker: true
+    use_docker: false
     run_user: nobody
     run_group: nobody
   roles:
